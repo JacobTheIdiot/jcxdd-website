@@ -582,9 +582,9 @@ function RecentTracks({ tracks }) {
   )
 }
 
-const COUNTER_URL = 'https://api.counterapi.dev/v2/jacobs-team-5911/jcxddme-counter'
+const COUNTER_URL = 'https://vvv.yokiddo9.workers.dev/'
 
-let counterRequest = null // shared so StrictMode's double-mount sends only one request
+let counterRequest = null 
 
 function fetchCount() {
   if (counterRequest) return counterRequest
@@ -596,17 +596,12 @@ function fetchCount() {
     // storage blocked: just count
   }
 
-  // no Authorization header: the API's CORS rules reject it from browsers,
-  // and public v2 counters don't need it
-  counterRequest = fetch(alreadyCounted ? COUNTER_URL : `${COUNTER_URL}/up`)
+  counterRequest = fetch(alreadyCounted ? COUNTER_URL : `${COUNTER_URL}?up=1`)
     .then((r) => {
       if (!r.ok) throw new Error(`counter responded ${r.status}`)
       return r.json()
     })
     .then((d) => {
-      // check the console if the number doesn't show: this logs the raw response
-      console.log('counterapi response:', d)
-      // only remember this visitor once the increment actually succeeded
       if (!alreadyCounted) {
         try { localStorage.setItem('visitor-counted', '1') } catch { /* ignore */ }
       }
