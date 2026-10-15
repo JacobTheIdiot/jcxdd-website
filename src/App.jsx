@@ -2,7 +2,7 @@ import { useLanyard } from 'use-lanyard'
 import './App.css'
 import './BorderGlow.css'
 import BorderGlow from './BorderGlow'
-
+import Oneko from "./Oneko"
 import StatusIcons from './StatusIcons'
 import { useRef, useEffect, useState } from 'react'
 import track from './assets/song.mp3'
@@ -12,8 +12,8 @@ import tiktokIcon from './assets/tiktokicon.svg'
 import discordIcon from './assets/discordicon.svg'
 
 const LASTFM_USER = 'jc9606'
-const LASTFM_KEY = 'c5ebb1c4d8a62182233242bcbd6407bd' // read-only key, fine to be public
-const PLACEHOLDER = '2a96cbd8b46e442fc41c2b86b821562f' // Last.fm's default "no art" star
+const LASTFM_KEY = 'c5ebb1c4d8a62182233242bcbd6407bd' 
+const PLACEHOLDER = '2a96cbd8b46e442fc41c2b86b821562f' 
 
 function TiltContainer({ children, className, max = 12 }) {
   const ref = useRef(null)
@@ -52,7 +52,7 @@ function TiltContainer({ children, className, max = 12 }) {
   )
 }
 
-function LocalTime({ timeZone = 'America/Los_Angeles' }) {
+function LocalTime({ timeZone = 'America/Los_Angeles', place = 'California' }) {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -66,7 +66,18 @@ function LocalTime({ timeZone = 'America/Los_Angeles' }) {
     minute: '2-digit',
   })
 
-  return <p className="local-time">it's {time}</p>
+  return (
+    <p className="local-time">
+      <svg viewBox="0 0 24 24" className="local-pin" aria-hidden="true">
+        <path
+          d="M12 22s7-6.2 7-12a7 7 0 10-14 0c0 5.8 7 12 7 12z"
+          fill="none" stroke="currentColor" strokeWidth="2"
+        />
+        <circle cx="12" cy="10" r="2.5" fill="currentColor" />
+      </svg>
+      {place} · {time}
+    </p>
+  )
 }
 
 function StarField({ density = 0.00012, drift = 100, parallax = 12 }) {
@@ -399,6 +410,135 @@ function useLastFm(limit = 8) {
   return tracks
 }
 
+const PERIODS = [
+  { id: '7day', label: '7d' },
+  { id: '1month', label: '1m' },
+  { id: '12month', label: '1y' },
+  { id: 'overall', label: 'all' },
+]
+
+const TOP_TABS = [
+  { id: 'artists', method: 'user.gettopartists', root: 'topartists', item: 'artist' },
+  { id: 'albums', method: 'user.gettopalbums', root: 'topalbums', item: 'album' },
+  { id: 'tracks', method: 'user.gettoptracks', root: 'toptracks', item: 'track' },
+]
+
+function useLastFmTop(tabId, period, limit = 8) {
+  const [state, setState] = useState({ key: '', items: null })
+  const key = `${tabId}:${period}`
+
+  useEffect(() => {
+    let alive = true
+    const tab = TOP_TABS.find((t) => t.id === tabId)
+
+    fetch(
+      `https://ws.audioscrobbler.com/2.0/?method=${tab.method}&user=${LASTFM_USER}&api_key=${LASTFM_KEY}&period=${period}&format=json&limit=${limit}`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        if (!alive) return
+        const list = [].concat(data[tab.root]?.[tab.item] ?? [])
+        setState({
+          key,
+          items: list.map((it) => {
+            const art = it.image?.find((i) => i.size === 'extralarge')?.['#text']
+            return {
+              name: it.name,
+              sub: it.artist?.name,           // artists have none; albums/tracks do
+              url: it.url,
+              plays: Number(it.playcount) || 0,
+              image: art && !art.includes(PLACEHOLDER) ? art : null,
+            }
+          }),
+        })
+      })
+      .catch((err) => console.error('Last.fm top fetch failed:', err))
+
+    return () => { alive = false }
+  }, [tabId, period, key, limit])
+
+  // keep showing the old list (dimmed) while the new one loads
+  return { items: state.items, loading: state.key !== key }
+}
+
+function TopLastFm() {
+  const [tabId, setTabId] = useState('artists')
+  const [period, setPeriod] = useState('1month')
+  const { items, loading } = useLastFmTop(tabId, period)
+  const max = items?.length ? Math.max(...items.map((i) => i.plays)) : 1
+
+  return (
+    <BorderGlow
+      className="lastfm-glow"
+      glowColor="100 100 100"
+      backgroundColor="#11111130"
+      colors={['', '', '']}
+      glowIntensity={0.5}
+      glowRadius={0.5}
+      maxTilt={0}
+      blurPxls={2.5}
+    >
+      <div className="lastfm top">
+        <p className="lastfm-heading">top played</p>
+
+        <div className="top-controls">
+          <div className="seg">
+            {TOP_TABS.map((t) => (
+              <button
+                key={t.id}
+                className={`seg-btn${tabId === t.id ? ' active' : ''}`}
+                onClick={() => setTabId(t.id)}
+              >
+                {t.id}
+              </button>
+            ))}
+          </div>
+          <div className="seg">
+            {PERIODS.map((p) => (
+              <button
+                key={p.id}
+                className={`seg-btn${period === p.id ? ' active' : ''}`}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`top-list${loading ? ' loading' : ''}`}>
+          {(items ?? []).map((it, i) => (
+            <a
+              key={`${tabId}-${i}`}
+              href={it.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="top-row"
+            >
+              <span className="top-rank">{i + 1}</span>
+              {tabId !== 'artists' &&
+                (it.image ? (
+                  <img className="lastfm-art" src={it.image} alt="" />
+                ) : (
+                  <div className="lastfm-art lastfm-art--empty" />
+                ))}
+              <div className="lastfm-text">
+                <p className="lastfm-title">{it.name}</p>
+                {it.sub && <p className="lastfm-artist">{it.sub}</p>}
+                <div className="top-bar">
+                  <div className="top-bar-fill" style={{ width: `${(it.plays / max) * 100}%` }} />
+                </div>
+              </div>
+              <span className="lastfm-when">{it.plays.toLocaleString()} plays</span>
+            </a>
+          ))}
+          {!items && <p className="top-empty">loading…</p>}
+        </div>
+      </div>
+    </BorderGlow>
+  )
+}
+
 function RecentTracks({ tracks }) {
   if (!tracks || tracks.length === 0) return null
 
@@ -448,6 +588,13 @@ function App() {
   useAppIcons(presence?.activities)
 
   const [entered, setEntered] = useState(false)
+  const pageTwoRef = useRef(null)
+
+  // no scrolling behind the "click" screen
+  useEffect(() => {
+    document.body.style.overflow = entered ? '' : 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [entered])
 
   const gate = (
     <button
@@ -517,58 +664,79 @@ function App() {
 
   return (
     <>
+    <Oneko/>
       <StarField />
       {gate}
-      <section
+      <div
         className={`discord-profile${entered ? ' visible' : ''}`}
         style={{ position: 'relative', zIndex: 1 }}
       >
-      <TiltContainer className="tilt-stack" max={2}>
-        <BorderGlow
-          glowColor="100 100 100"
-          backgroundColor="#11111130"
-          colors={['', '', '']}
-          maxTilt={0}
-          blurPxls={2.5}
-        >
-          <div className="main-container">
-            <div className="discord-header">
-              <div className="discord-avatar-wrap">
-                <img
-                  src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`}
-                  alt="avatar"
-                  className="discord-avatar"
-                />
-                <div className="discord-status-wrapper">
-                  <StatusIcons status={status} className="discord-status" />
-                  <div className="discord-status-popup-content">{status}</div>
+        {/*page 1*/}
+        <section className="page">
+          <TiltContainer className="tilt-stack" max={2}>
+            <BorderGlow
+              glowColor="100 100 100"
+              backgroundColor="#11111130"
+              colors={['', '', '']}
+              maxTilt={0}
+              blurPxls={2.5}
+            >
+              <div className="main-container">
+                <div className="discord-header">
+                  <div className="discord-avatar-wrap">
+                    <img
+                      src={`https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`}
+                      alt="avatar"
+                      className="discord-avatar"
+                    />
+                    <div className="discord-status-wrapper">
+                      <StatusIcons status={status} className="discord-status" />
+                      <div className="discord-status-popup-content">{status}</div>
+                    </div>
+                  </div>
+                  <div className="discord-status-text">
+                    <b>{discordUser.username}</b>
+                    <p style={{ fontSize: '15px' }}>{status}</p>
+                    <LocalTime timeZone="America/Los_Angeles" />
+                  </div>
+                </div>
+                <div className="discord-activity-wrap">
+                  <div className="activity-list">
+                    {activities.map((activity, i) => (
+                      <Activity key={i} {...activity} />
+                    ))}
+                  </div>
+                </div>
+                <div className="social-links">
+                  <SocialLink href="https://steamcommunity.com/id/herwordskiII" icon={steamIcon} name="Steam" />
+                  <SocialLink href="https://github.com/jacobtheidiot" icon={githubIcon} name="GitHub" />
+                  <SocialLink href="https://www.tiktok.com/@jagblog" icon={tiktokIcon} name="TikTok" />
+                  <SocialLink href="https://discord.com/users/1125364099363119194" icon={discordIcon} name="Discord" />
                 </div>
               </div>
-              <div className="discord-status-text">
-                <b>{discordUser.username}</b>
-                <p style={{ fontSize: '15px' }}>{status}</p>
-                <LocalTime timeZone="America/Los_Angeles" />
-              </div>
-            </div>
-            <div className="discord-activity-wrap">
-              <div className="activity-list">
-                {activities.map((activity, i) => (
-                  <Activity key={i} {...activity} />
-                ))}
-              </div>
-            </div>
-            <div className="social-links">
-              <SocialLink href="https://steamcommunity.com/id/herwordskiII" icon={steamIcon} name="Steam" />
-              <SocialLink href="https://github.com/jacobtheidiot" icon={githubIcon} name="GitHub" />
-              <SocialLink href="https://www.tiktok.com/@jagblog" icon={tiktokIcon} name="TikTok" />
-              <SocialLink href="https://discord.com/users/1125364099363119194" icon={discordIcon} name="Discord" />
-            </div>
-          </div>
-        </BorderGlow>
-        <RecentTracks tracks={tracks} />
-        <VolumeControl />
-        </TiltContainer>
-      </section>
+            </BorderGlow>
+            <VolumeControl />
+          </TiltContainer>
+
+          <button
+            className="scroll-hint"
+            aria-label="Scroll down"
+            onClick={() => pageTwoRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </section>
+
+        {/*page 2*/}
+        <section className="page page-two" ref={pageTwoRef}>
+          <TiltContainer className='lastfm-wrapper' max={3}>
+          <TopLastFm />
+          <RecentTracks tracks={tracks} />
+          </TiltContainer>
+        </section>
+      </div>
     </>
   )
 }
