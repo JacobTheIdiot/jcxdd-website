@@ -582,6 +582,68 @@ function RecentTracks({ tracks }) {
   )
 }
 
+const COUNTER_URL = 'https://api.counterapi.dev/v2/jacobs-team-5911/jcxddme-counter'
+
+let counterRequest = null // shared so StrictMode's double-mount sends only one request
+
+function fetchCount() {
+  if (counterRequest) return counterRequest
+
+  let alreadyCounted = false
+  try {
+    alreadyCounted = localStorage.getItem('visitor-counted') === '1'
+  } catch {
+    // storage blocked: just count
+  }
+
+  // no Authorization header: the API's CORS rules reject it from browsers,
+  // and public v2 counters don't need it
+  counterRequest = fetch(alreadyCounted ? COUNTER_URL : `${COUNTER_URL}/up`)
+    .then((r) => {
+      if (!r.ok) throw new Error(`counter responded ${r.status}`)
+      return r.json()
+    })
+    .then((d) => {
+      // check the console if the number doesn't show: this logs the raw response
+      console.log('counterapi response:', d)
+      // only remember this visitor once the increment actually succeeded
+      if (!alreadyCounted) {
+        try { localStorage.setItem('visitor-counted', '1') } catch { /* ignore */ }
+      }
+      const value = d?.data?.up_count ?? d?.up_count ?? d?.data?.value ?? d?.value ?? d?.count
+      return typeof value === 'number' ? value : null
+    })
+
+  counterRequest.catch(() => { counterRequest = null }) // allow a retry after failure
+  return counterRequest
+}
+
+function VisitorCounter() {
+  const [count, setCount] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchCount()
+      .then((v) => { if (!cancelled) setCount(v) })
+      .catch((err) => console.warn('visitor counter failed:', err))
+    return () => { cancelled = true }
+  }, [])
+
+  if (count == null) return null
+  return (
+    <p className="visitor-count" title="visitors" aria-label={`${count} visitors`}>
+      <svg viewBox="0 0 24 24" className="visitor-eye" aria-hidden="true">
+        <path
+          d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
+          fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="3.5" fill="currentColor" />
+      </svg>
+      {count.toLocaleString()}
+    </p>
+  )
+}
+
 function App() {
   const presence = useLanyard('1125364099363119194')
   const tracks = useLastFm()
@@ -713,6 +775,7 @@ function App() {
                   <SocialLink href="https://www.tiktok.com/@jagblog" icon={tiktokIcon} name="TikTok" />
                   <SocialLink href="https://discord.com/users/1125364099363119194" icon={discordIcon} name="Discord" />
                 </div>
+                <VisitorCounter />
               </div>
             </BorderGlow>
             <VolumeControl />
