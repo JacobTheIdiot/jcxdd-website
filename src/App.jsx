@@ -5,7 +5,11 @@ import BorderGlow from './BorderGlow'
 import Oneko from "./Oneko"
 import StatusIcons from './StatusIcons'
 import { useRef, useEffect, useState } from 'react'
-import track from './assets/song.mp3'
+import ithinkaboutyouallthetime from './assets/song.mp3'
+import imnotgodbutiwishiwas from "./assets/smkdpe2016.mp3"
+import lefty from "./assets/lefty.mp3"
+import blackfingernails from "./assets/blackfingernails.mp3"
+
 import steamIcon from './assets/steamlogo.svg'
 import githubIcon from './assets/github.png'
 import tiktokIcon from './assets/tiktokicon.svg'
@@ -233,9 +237,24 @@ function SocialLink({ href, icon, name }) {
   )
 }
 
+const track_list = [ithinkaboutyouallthetime, imnotgodbutiwishiwas, lefty, blackfingernails];
 function VolumeControl() {
   const audioRef = useRef(null)
-  const [volume, setVolume] = useState(0.5)
+  const skipped = useRef(false)
+  const [volume, setVolume] = useState(0.25)
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * track_list.length))
+  const track = track_list[idx]
+
+  const skip = () => {
+    skipped.current = true
+    setIdx(idx + 1 >= track_list.length ? 0 : idx + 1)
+  }
+
+  useEffect(() => {
+    if (!skipped.current) return
+    skipped.current = false
+    audioRef.current?.play().catch(() => {})
+  }, [idx])
 
   useEffect(() => {
     const a = audioRef.current
@@ -247,18 +266,16 @@ function VolumeControl() {
     const a = audioRef.current
     if (!a) return
 
-    const start = () => {
-      a.play().then(cleanup).catch(() => {})
-    }
     const cleanup = () => {
       window.removeEventListener('pointerdown', start)
       window.removeEventListener('keydown', start)
     }
+    const start = () => {
+      a.play().then(cleanup).catch(() => {})
+    }
 
-    a.play().catch(() => {
-      window.addEventListener('pointerdown', start)
-      window.addEventListener('keydown', start)
-    })
+    window.addEventListener('pointerdown', start)
+    window.addEventListener('keydown', start)
     return cleanup
   }, [])
 
@@ -295,6 +312,12 @@ function VolumeControl() {
           style={{ '--fill': `${volume * 100}%` }}
           aria-label="Volume"
         />
+        <button className="skip-btn" onClick={skip} aria-label="Skip track">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 5l9 7-9 7V5z" fill="currentColor" />
+            <path d="M18 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
     </BorderGlow>
   )
