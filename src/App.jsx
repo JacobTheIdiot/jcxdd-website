@@ -5,15 +5,24 @@ import BorderGlow from './BorderGlow'
 import Oneko from "./Oneko"
 import StatusIcons from './StatusIcons'
 import { useRef, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ithinkaboutyouallthetime from './assets/song.mp3'
 import imnotgodbutiwishiwas from "./assets/smkdpe2016.mp3"
 import lefty from "./assets/lefty.mp3"
 import blackfingernails from "./assets/blackfingernails.mp3"
 
+import photo1 from './assets/photos/photo1.jpg'
+import photo2 from './assets/photos/photo2.jpg'
+import photo3 from './assets/photos/photo3.jpg'
+import photo4 from './assets/photos/photo4.jpg'
+import photo5 from './assets/photos/photo5.jpg'
+import photo6 from './assets/photos/photo6.jpg'
+
 import steamIcon from './assets/steamlogo.svg'
 import githubIcon from './assets/github.png'
 import tiktokIcon from './assets/tiktokicon.svg'
 import discordIcon from './assets/discordicon.svg'
+import statsfmIcon from './assets/statsfmIcon.svg'
 
 const LASTFM_USER = 'jc9606'
 const LASTFM_KEY = 'c5ebb1c4d8a62182233242bcbd6407bd' 
@@ -605,6 +614,87 @@ function RecentTracks({ tracks }) {
   )
 }
 
+const photo_list = [photo1, photo2, photo3, photo4, photo5, photo6]
+
+function Photos() {
+  const [open, setOpen] = useState(null) 
+
+  const isOpen = open !== null
+
+  const step = (n) => setOpen((i) => (i + n + photo_list.length) % photo_list.length)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(null)
+      if (e.key === 'ArrowLeft') step(-1)
+      if (e.key === 'ArrowRight') step(1)
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [isOpen])
+
+  return (
+    <BorderGlow
+      className="photo-glow"
+      glowColor="100 100 100"
+      backgroundColor="#11111130"
+      colors={['', '', '']}
+      glowIntensity={0.5}
+      glowRadius={0.5}
+      maxTilt={0}
+      blurPxls={2.5}
+    >
+      <div className="photo-container">
+        <p className="lastfm-heading">photos</p>
+        <div className="photo-grid">
+          {photo_list.map((src, i) => (
+            <button key={i} className="photo-item" onClick={() => setOpen(i)} aria-label="Open photo">
+              <img src={src} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* portal so the tilt transform doesn't trap the fullscreen view inside the card */}
+      {open !== null && createPortal(
+        <div className="photo-lightbox" onClick={() => setOpen(null)}>
+          <img className="photo-full" src={photo_list[open]} alt="" onClick={(e) => e.stopPropagation()} />
+          {photo_list.length > 1 && (
+            <>
+              <button
+                className="photo-nav photo-prev"
+                onClick={(e) => { e.stopPropagation(); step(-1) }}
+                aria-label="Previous photo"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                className="photo-nav photo-next"
+                onClick={(e) => { e.stopPropagation(); step(1) }}
+                aria-label="Next photo"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>,
+        document.body
+      )}
+    </BorderGlow>
+  )
+}
+
 const COUNTER_URL = 'https://vvv.yokiddo9.workers.dev/'
 
 let counterRequest = null 
@@ -669,6 +759,7 @@ function App() {
 
   const [entered, setEntered] = useState(false)
   const pageTwoRef = useRef(null)
+  const pageThreeRef = useRef(null)
 
   // no scrolling behind the "click" screen
   useEffect(() => {
@@ -792,6 +883,7 @@ function App() {
                   <SocialLink href="https://github.com/jacobtheidiot" icon={githubIcon} name="GitHub" />
                   <SocialLink href="https://www.tiktok.com/@jagblog" icon={tiktokIcon} name="TikTok" />
                   <SocialLink href="https://discord.com/users/1125364099363119194" icon={discordIcon} name="Discord" />
+                  <SocialLink href="https://stats.fm/jc.xdd" icon={statsfmIcon} name={"StatsFM"}/>
                 </div>
                 <VisitorCounter />
               </div>
@@ -815,6 +907,22 @@ function App() {
           <TiltContainer className='lastfm-wrapper' max={3}>
           <TopLastFm />
           <RecentTracks tracks={tracks} />
+          </TiltContainer>
+          <button
+            className="scroll-hint"
+            aria-label="Scroll down"
+            onClick={() => pageThreeRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </section>
+
+        {/*page3*/}
+        <section className='page page-three' ref={pageThreeRef}>
+          <TiltContainer className="page-three-wrapper" max={3}>
+            <Photos />
           </TiltContainer>
         </section>
       </div>

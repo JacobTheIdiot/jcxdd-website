@@ -3,7 +3,8 @@
 }
 
 body {
-  background: #000000
+  background: #000000;
+
 }
 
 
@@ -451,7 +452,8 @@ html { scroll-behavior: smooth; }
   padding: 40px 0;
 }
 
-.page-two {
+.page-two,
+.page-three {
   justify-content: flex-start;
   padding-top: 12vh;
   padding-bottom: 80px;
@@ -607,3 +609,94 @@ html { scroll-behavior: smooth; }
 }
 .skip-btn:hover { transform: scale(1.15); }
 .skip-btn svg { width: 100%; height: 100%; }
+
+.photo-container {
+  width: min(700px, 90vw);
+  padding: 14px 16px 16px;
+  box-sizing: border-box;
+}
+
+/* columns keep each photo's real shape, so portraits and landscapes mix without cropping */
+.photo-grid {
+  column-count: 3;
+  column-gap: 10px;
+}
+
+.photo-item {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: zoom-in;
+  break-inside: avoid;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+.photo-item:hover,
+.photo-item:focus-visible { opacity: 1; }
+.photo-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.92);
+  cursor: zoom-out;
+}
+
+.photo-full {
+  max-width: 92vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.photo-nav {
+  position: absolute;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #9a9aa5;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.photo-nav:hover { color: #fff; background: rgba(255, 255, 255, 0.16); }
+.photo-nav svg { width: 100%; height: 100%; }
+.photo-prev { left: 16px; }
+.photo-next { right: 16px; }
+
+@media (max-width: 600px) {
+  .photo-grid { column-count: 2; }
+}
+.page { min-height: 100svh; }
+
+@media (max-width: 600px) {
+  body { overflow-x: clip; }
+
+  .main-container {
+    width: 90vw;
+    box-sizing: border-box;
+  }
+
+  .top-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
