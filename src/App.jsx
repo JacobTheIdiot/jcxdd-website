@@ -744,9 +744,9 @@ function App() {
 
   return (
     <>
+    {gate}
     <Oneko/>
       <StarField />
-      {gate}
       <div
         className={`discord-profile${entered ? ' visible' : ''}`}
         style={{ position: 'relative', zIndex: 1 }}
